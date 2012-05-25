@@ -10,10 +10,23 @@ import org.codehaus.jackson.map.annotate.JsonCachable
 
 @JsonCachable
 class CaseClassSerializer[A <: Product](klass: Class[_]) extends JsonSerializer[A] {
+  /**
+   * Find all annotations on this class or anything it inherits from
+   * FIXME - there has to be a generic way to pass in the annotation type.
+   */
+  private def getAnnotations(klass: java.lang.Class[_]): Seq[JsonIgnoreProperties] = {
+    if (klass == null)
+      List.empty[JsonIgnoreProperties]
+    else
+      getAnnotations(klass.getSuperclass) ++ Option(klass.getAnnotation(classOf[JsonIgnoreProperties])).toList
+  }
+
   private val isSnakeCase = klass.isAnnotationPresent(classOf[JsonSnakeCase])
-  private val ignoredFields = if (klass.isAnnotationPresent(classOf[JsonIgnoreProperties])) {
-    klass.getAnnotation(classOf[JsonIgnoreProperties]).value().toSet
-  } else Set.empty[String]
+  private val ignoredFields: Set[String] = {
+    getAnnotations(klass).toSet.flatMap { a: JsonIgnoreProperties =>
+      a.value.toSet
+    }
+  }
   
   private val nonIgnoredFields = klass.getDeclaredFields.filterNot { f =>
     f.getAnnotation(classOf[JsonIgnore]) != null ||
@@ -29,6 +42,7 @@ class CaseClassSerializer[A <: Product](klass: Class[_]) extends JsonSerializer[
   def serialize(value: A, json: JsonGenerator, provider: SerializerProvider) {
     json.writeStartObject()
     for (field <- nonIgnoredFields) {
+      println("Serializing: " + field)
       val methodOpt = methods.get(field.getName)
       val fieldValue: Object = methodOpt.map { _.invoke(value) }.getOrElse(field.get(value))
       if (fieldValue != None) {
