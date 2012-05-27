@@ -42,7 +42,6 @@ class CaseClassSerializer[A <: Product](klass: Class[_]) extends JsonSerializer[
   def serialize(value: A, json: JsonGenerator, provider: SerializerProvider) {
     json.writeStartObject()
     for (field <- nonIgnoredFields) {
-      println("Serializing: " + field)
       val methodOpt = methods.get(field.getName)
       val fieldValue: Object = methodOpt.map { _.invoke(value) }.getOrElse(field.get(value))
       if (fieldValue != None) {
