@@ -32,7 +32,7 @@ object AST {
       try {
         elements(index)
       } catch {
-        case _ => JNull
+        case e: Throwable => JNull
       }
     }
   }
